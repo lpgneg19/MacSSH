@@ -1,0 +1,59 @@
+name: MacSSH
+
+options:
+  minimumXcodeGenVersion: 2.38.0
+
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    SWIFT_VERSION: "6.2"
+    PRODUCT_NAME: "MacSSH"
+
+schemes:
+  MacSSH:
+    build:
+      targets:
+        MacSSH: all
+    run:
+      config: Debug
+
+targets:
+  MacSSH:
+    type: application
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - Sources
+    settings:
+      base:
+        INFOPLIST_FILE: Sources/App/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.MacSSH
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        HEADER_SEARCH_PATHS: "$(SRCROOT)/ThirdParty/include"
+        LIBRARY_SEARCH_PATHS: "$(SRCROOT)/ThirdParty/lib"
+        FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/ThirdParty/lib"
+        OTHER_CFLAGS: "-I$(SRCROOT)/ThirdParty/include"
+        OTHER_SWIFT_FLAGS: "-Xcc -fmodule-map-file=$(SRCROOT)/ThirdParty/include/module.modulemap"
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/App/MacSSH-Bridging-Header.h
+        OTHER_LDFLAGS: "-lssh2 -lssl -lcrypto -lghostty-vt -lc++ -framework Carbon -Wl,-no_fixup_chains -Wl,-ld_classic"
+        LD_USE_CLASSIC_LINKER: "YES"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+    dependencies:
+      - framework: ThirdParty/lib/GhosttyKit.xcframework
+        embed: false
+    postBuildScripts:
+      - name: Embed libghostty-vt
+        runOnlyForDeploymentPostprocessing: false
+        basedOnDependencyAnalysis: false
+        inputs:
+          - $(SRCROOT)/ThirdParty/lib/libghostty-vt.dylib
+        outputs:
+          - $(TARGET_BUILD_DIR)/$(FRAMEWORKS_FOLDER_PATH)/libghostty-vt.dylib
+        script: |
+          set -euo pipefail
+          SRC="${SRCROOT}/ThirdParty/lib/libghostty-vt.dylib"
+          DST="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
+          mkdir -p "$DST"
+          cp -f "$SRC" "$DST/"
+          codesign --force --sign - "$DST/libghostty-vt.dylib"

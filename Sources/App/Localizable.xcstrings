@@ -1,0 +1,64 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@" : {
+
+    },
+    "%@@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@@%2$@"
+          }
+        }
+      }
+    },
+    "© 2026 Steve" : {
+
+    },
+    "Are you sure you want to delete the selected connection?" : {
+      "comment" : "Delete connection confirmation message"
+    },
+    "Choose how to import connections. 'Merge' will add new connections from the file, while 'Replace All' will remove all existing data first." : {
+      "comment" : "Import mode selection message"
+    },
+    "Click here to type" : {
+
+    },
+    "Connected" : {
+      "comment" : "Connection status"
+    },
+    "Connecting..." : {
+      "comment" : "Connection status"
+    },
+    "Ghostty Engine" : {
+
+    },
+    "Idle" : {
+      "comment" : "Connection status"
+    },
+    "MacSSH" : {
+
+    },
+    "Select a server from the sidebar to begin your session, or add a new one to get started." : {
+      "comment" : "Empty state description"
+    },
+    "Shortcut: ⌘N New Connection" : {
+      "comment" : "Empty state shortcut hint"
+    },
+    "Start a New Connection" : {
+      "comment" : "Empty state title"
+    },
+    "The terminal captures your keyboard input once focused." : {
+
+    },
+    "Transferring..." : {
+      "comment" : "SFTP transfer status"
+    },
+    "Version 0.1.0 (1)" : {
+
+    }
+  },
+  "version" : "1.0"
+}
