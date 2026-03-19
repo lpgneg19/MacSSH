@@ -29,7 +29,7 @@ targets:
         INFOPLIST_FILE: Sources/App/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.example.MacSSH
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: 0.1.0
+        MARKETING_VERSION: 0.0.1
         HEADER_SEARCH_PATHS: "$(SRCROOT)/ThirdParty/include"
         LIBRARY_SEARCH_PATHS: "$(SRCROOT)/ThirdParty/lib"
         FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/ThirdParty/lib"
