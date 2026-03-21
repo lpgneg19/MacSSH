@@ -2,6 +2,11 @@
 
 A modern, high-performance SSH & SFTP client for macOS, powered by the **Ghostty** terminal engine.
 
+> [!WARNING]
+> **早期预览版本 / Early Preview**
+> MacSSH 目前处于早期开发阶段，功能尚未完整，可能存在 Bug 和不稳定情况，请谨慎用于生产环境。  
+> MacSSH is currently in early development. It may contain bugs and stability issues. Use in production environments at your own risk.
+
 ## Features
 
 - **Ghostty Terminal Engine**: Blazing fast rendering with modern terminal features.
