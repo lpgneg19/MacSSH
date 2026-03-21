@@ -450,13 +450,34 @@
       }
     },
     "Connection is not open." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接未建立。"
+          }
+        }
+      }
     },
     "Connection Settings" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接设置"
+          }
+        }
+      }
     },
     "Connections" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接"
+          }
+        }
+      }
     },
     "Create a new SSH connection profile" : {
       "localizations" : {
@@ -588,16 +609,44 @@
       }
     },
     "Enable Terminal Text Glow" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用终端文本发光效果"
+          }
+        }
+      }
     },
     "Enable these effects for a more modern, state-of-the-art macOS experience." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用这些特效，享受更现代、更前沿的 macOS 体验。"
+          }
+        }
+      }
     },
     "Enable Vibrancy (Glass Effect)" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用“生动感”（玻璃效果）"
+          }
+        }
+      }
     },
     "Engine" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引擎"
+          }
+        }
+      }
     },
     "Error: %@" : {
       "extractionState" : "stale",
@@ -634,7 +683,14 @@
       }
     },
     "Export Connections" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出连接"
+          }
+        }
+      }
     },
     "Export Connections..." : {
       "localizations" : {
@@ -653,10 +709,24 @@
       }
     },
     "Font Family" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字体家族"
+          }
+        }
+      }
     },
     "Font Size" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字体大小"
+          }
+        }
+      }
     },
     "General" : {
       "localizations" : {
@@ -675,7 +745,14 @@
       }
     },
     "General Information" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一般信息"
+          }
+        }
+      }
     },
     "Home" : {
       "localizations" : {
@@ -710,10 +787,24 @@
       }
     },
     "Hostname or IP" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主机名或 IP 地址"
+          }
+        }
+      }
     },
     "How this connection appears in your sidebar." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该链接在侧边栏中的显示效果。"
+          }
+        }
+      }
     },
     "Idle" : {
       "extractionState" : "stale",
@@ -782,16 +873,44 @@
       }
     },
     "Local" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地"
+          }
+        }
+      }
     },
     "Local Shell" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地 Shell"
+          }
+        }
+      }
     },
     "Local Terminal" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地终端"
+          }
+        }
+      }
     },
     "MacSSH" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacSSH"
+          }
+        }
+      }
     },
     "MacSSH ready." : {
       "extractionState" : "stale",
@@ -844,19 +963,54 @@
       }
     },
     "Merge (Recommended)" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并（推荐）"
+          }
+        }
+      }
     },
     "Name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称"
+          }
+        }
+      }
     },
     "Native Ghostty (Metal)" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原生Ghostty（Metal）"
+          }
+        }
+      }
     },
     "Native Ghostty Engine" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原生Ghostty引擎"
+          }
+        }
+      }
     },
     "New Tab" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新标签页"
+          }
+        }
+      }
     },
     "Next Tab" : {
       "localizations" : {
@@ -891,10 +1045,24 @@
       }
     },
     "Open Application Settings" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开应用设置"
+          }
+        }
+      }
     },
     "Open Connection" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建立连接"
+          }
+        }
+      }
     },
     "Open in Tab" : {
       "localizations" : {
@@ -913,7 +1081,14 @@
       }
     },
     "Overwrite existing files" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆盖现有文件"
+          }
+        }
+      }
     },
     "Password" : {
       "localizations" : {
@@ -949,7 +1124,14 @@
       }
     },
     "Port" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "端口"
+          }
+        }
+      }
     },
     "Premium Effects" : {
       "localizations" : {
@@ -1134,7 +1316,14 @@
       }
     },
     "Select key..." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择key…"
+          }
+        }
+      }
     },
     "Select Private Key" : {
       "extractionState" : "stale",
@@ -1598,7 +1787,14 @@
       }
     },
     "WARNING: The host key for %@ has changed. This could indicate a security issue. Only continue if you trust the new key." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "警告：%@主机密钥已更改。这可能表示存在安全问题。仅在您信任新密钥时继续。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
