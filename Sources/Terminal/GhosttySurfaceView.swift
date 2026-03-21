@@ -47,12 +47,17 @@ final class GhosttySurfaceView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         updateContentScale()
-        updateSurfaceSize()
-        // Ensure the surface view becomes first responder so it can receive key events
+        // Re-evaluate size after the window has assigned us a proper frame
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
+            self.updateSurfaceSize()
             self.window?.makeFirstResponder(self)
         }
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        updateSurfaceSize()
     }
 
     override func layout() {
@@ -98,6 +103,34 @@ final class GhosttySurfaceView: NSView {
     override func rightMouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
         super.rightMouseDown(with: event)
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        guard let surface = surface.value else { return }
+        let deltaY = event.scrollingDeltaY
+        guard abs(deltaY) > 0.1 else { return }
+
+        // macOS up-arrow = 0x7E, down-arrow = 0x7D.
+        // scrollingDeltaY > 0  → user dragged finger up → content scrolls up → we need "up-arrow" to walk
+        // through scrollback (older lines).
+        let arrowKeyCode: UInt32 = deltaY > 0 ? 0x7E : 0x7D
+        let rows = max(1, Int(abs(deltaY) / 3.0))
+
+        for _ in 0..<rows {
+            var pressEvent = ghostty_input_key_s()
+            pressEvent.action = GHOSTTY_ACTION_PRESS
+            pressEvent.keycode = arrowKeyCode
+            pressEvent.mods = ghostty_input_mods_e(GHOSTTY_MODS_NONE.rawValue)
+            pressEvent.consumed_mods = ghostty_input_mods_e(GHOSTTY_MODS_NONE.rawValue)
+            pressEvent.composing = false
+            pressEvent.text = nil
+            pressEvent.unshifted_codepoint = 0
+            ghostty_surface_key(surface, pressEvent)
+
+            var releaseEvent = pressEvent
+            releaseEvent.action = GHOSTTY_ACTION_RELEASE
+            ghostty_surface_key(surface, releaseEvent)
+        }
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
