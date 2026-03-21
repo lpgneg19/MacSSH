@@ -11,13 +11,7 @@ struct ContentView: View {
     @State private var showingDeleteAlert: Bool = false
 
     var body: some View {
-        Group {
-            if settings.renderer == .ghosttySurface {
-                LocalTerminalView(settings: settings)
-            } else {
-                splitView
-            }
-        }
+        splitView
         .confirmationDialog(
             String(localized: "Import Connections"),
             isPresented: $showImportDialog,
@@ -49,11 +43,9 @@ struct ContentView: View {
         } message: {
             Text("Are you sure you want to delete the selected connection?", comment: "Delete connection confirmation message")
         }
-        .onChange(of: model.selection) { _, newValue in
-            guard let id = newValue,
-                  let connection = model.connections.first(where: { $0.id == id })
-            else { return }
-            model.openConnection(connection)
+        .onChange(of: model.sidebarSelection) { _, _ in
+            // No longer auto-opening on selection.
+            // Selection just changes the detail view state.
         }
     }
 
@@ -70,19 +62,28 @@ struct ContentView: View {
     @ViewBuilder
     private var splitView: some View {
         NavigationSplitView {
-            List(selection: $model.selection) {
-                Section(String(localized: "Recent Connections")) {
+            List(selection: $model.sidebarSelection) {
+                Section(String(localized: "Local Shell")) {
+                    NavigationLink(value: SidebarItem.localTerminal) {
+                        Label(String(localized: "Local Terminal"), systemImage: "terminal")
+                    }
+                }
+
+                Section(String(localized: "Connections")) {
                     ForEach(model.filteredConnections) { connection in
-                        ConnectionRow(connection: connection, isSelected: model.selection == connection.id) {
+                        let isConnected = model.openTabs.first(where: { $0.connection.id == connection.id })?.terminalModel?.status == .connected
+                        let isActive = model.sidebarSelection == .connection(connection.id)
+                        ConnectionRow(connection: connection, isSelected: isActive, isConnected: isConnected) {
                             model.openConnection(connection)
                         }
-                        .tag(connection.id)
+                        .tag(SidebarItem.connection(connection.id))
                         .contextMenu {
                             Button {
                                 model.openConnection(connection)
                             } label: {
                                 Label(String(localized: "Open in Tab"), systemImage: "terminal")
                             }
+
                             
                             Divider()
                             
@@ -93,7 +94,7 @@ struct ContentView: View {
                             }
 
                             Button(role: .destructive) {
-                                model.selection = connection.id
+                                model.sidebarSelection = .connection(connection.id)
                                 showingDeleteAlert = true
                             } label: {
                                 Label(String(localized: "Delete"), systemImage: "trash")
@@ -103,10 +104,10 @@ struct ContentView: View {
                 }
             }
             .searchable(text: $model.searchText, placement: .sidebar, prompt: Text(String(localized: "Search connections")))
-            .navigationTitle("MacSSH")
+            .navigationTitle(String(localized: "MacSSH"))
             .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    ControlGroup {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
                         Button {
                             editorConnection = SSHConnection(name: "", host: "", port: 22, username: "")
                         } label: {
@@ -122,19 +123,19 @@ struct ContentView: View {
                         } label: {
                             Label(String(localized: "Edit"), systemImage: "pencil")
                         }
-                        .disabled(model.selection == nil)
+                        .disabled(model.selectedConnection == nil)
+                        .help(String(localized: "Edit Connection Profile"))
                         
                         Button(role: .destructive) {
                             showingDeleteAlert = true
                         } label: {
                             Label(String(localized: "Delete"), systemImage: "trash")
                         }
-                        .disabled(model.selection == nil)
-                    }
-                }
-                
-                ToolbarItemGroup(placement: .secondaryAction) {
-                    Menu {
+                        .disabled(model.selectedConnection == nil)
+                        .help(String(localized: "Delete Connection"))
+
+                        Divider()
+
                         Button {
                             exportConnections()
                         } label: {
@@ -147,24 +148,32 @@ struct ContentView: View {
                             Label(String(localized: "Import Connections..."), systemImage: "square.and.arrow.down")
                         }
                     } label: {
-                        Label(String(localized: "Manage"), systemImage: "ellipsis.circle")
+                        Label(String(localized: "Manage Connections"), systemImage: "ellipsis.circle")
                     }
+                    .menuIndicator(.hidden)
                 }
             }
         } detail: {
-            if model.openTabs.isEmpty {
-                EmptyStateView()
-            } else {
-                TabView(selection: $model.selectedTabID) {
-                    ForEach(model.openTabs) { tab in
-                        TerminalView(connection: tab.connection, settings: settings, appModel: model)
-                            .tag(tab.id as SessionTab.ID?)
-                            .tabItem {
-                                Label(tab.connection.name, systemImage: "terminal")
-                            }
+            if case .localTerminal = model.sidebarSelection {
+                LocalTerminalView(settings: settings)
+            } else if let conn = model.selectedConnection {
+                if let tab = model.openTabs.first(where: { $0.connection.id == conn.id }) {
+                    TerminalView(tab: tab, settings: settings, appModel: model)
+                        .id(tab.id)
+                } else {
+                    ContentUnavailableView {
+                        Label(conn.name, systemImage: "terminal")
+                    } description: {
+                        Text(String(localized: "Connection is not open."))
+                    } actions: {
+                        Button(String(localized: "Open Connection")) {
+                            model.openConnection(conn)
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                 }
-                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: model.selectedTabID)
+            } else {
+                EmptyStateView()
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -198,7 +207,7 @@ private struct EmptyStateView: View {
     var body: some View {
         ContentUnavailableView {
             Label {
-                Text("Start a New Connection", comment: "Empty state title")
+                Text(String(localized: "Start a New Connection", comment: "Empty state title"))
                     .font(.title2)
             } icon: {
                 Image(systemName: "terminal.fill")
@@ -207,11 +216,11 @@ private struct EmptyStateView: View {
                     .font(.system(size: 48))
             }
         } description: {
-            Text("Select a server from the sidebar to begin your session, or add a new one to get started.", comment: "Empty state description")
+            Text(String(localized: "Select a server from the sidebar to begin your session, or add a new one to get started.", comment: "Empty state description"))
                 .font(.body)
                 .foregroundStyle(.secondary)
         } actions: {
-            Text("Shortcut: ⌘N New Connection", comment: "Empty state shortcut hint")
+            Text(String(localized: "Shortcut: ⌘N New Connection", comment: "Empty state shortcut hint"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -221,34 +230,37 @@ private struct EmptyStateView: View {
 private struct ConnectionRow: View {
     let connection: SSHConnection
     let isSelected: Bool
+    var isConnected: Bool = false
     @State private var isHovered = false
     var onConnect: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.white.opacity(0.2) : Color.blue.opacity(0.1))
-                
                 Image(systemName: "desktopcomputer")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.blue.gradient))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(Color.blue.gradient) : AnyShapeStyle(Color.gray))
+                
+                Circle()
+                    .fill(isConnected ? Color.green : Color.gray.opacity(0.5))
+                    .frame(width: 8, height: 8)
+                    .overlay(Circle().stroke(Color.black.opacity(0.2), lineWidth: 1))
+                    .offset(x: 10, y: 10)
             }
             .frame(width: 32, height: 32)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(connection.name)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(isSelected ? .white : .primary)
                 
                 Text("\(connection.username)@\(connection.host)")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
+                    .foregroundStyle(.secondary)
             }
             
             Spacer()
             
-            if isHovered && !isSelected {
+            if isHovered {
                 Button {
                     onConnect?()
                 } label: {

@@ -75,7 +75,6 @@ struct SettingsView: View {
             }
             
             Section {
-                // Placeholder for future general settings
                 Toggle(String(localized: "Confirm before disconnecting"), isOn: .constant(true))
                 Toggle(String(localized: "Automatically reconnect on failure"), isOn: .constant(false))
             }
@@ -129,10 +128,11 @@ struct SettingsView: View {
             }
 
             Section {
-                Picker(String(localized: "Default Renderer"), selection: $settings.renderer) {
-                    ForEach(AppSettings.RendererMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
-                    }
+                HStack {
+                    Text(String(localized: "Terminal Engine"))
+                    Spacer()
+                    Text(String(localized: "Native Ghostty (Metal)"))
+                        .foregroundStyle(.secondary)
                 }
             } header: {
                 Text(String(localized: "Rendering"))
@@ -167,9 +167,9 @@ struct SettingsView: View {
                 .foregroundStyle(Color.accentColor)
             
             VStack(spacing: 4) {
-                Text("MacSSH")
+                Text(String(localized: "MacSSH"))
                     .font(.title).bold()
-                Text("Version 0.1.0 (1)")
+                Text(String(localized: "Version 0.1.0 (1)"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -182,7 +182,7 @@ struct SettingsView: View {
             Divider()
                 .padding(.horizontal, 40)
             
-            Text("© 2026 Steve")
+            Text(String(localized: "© 2026 Steve"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }

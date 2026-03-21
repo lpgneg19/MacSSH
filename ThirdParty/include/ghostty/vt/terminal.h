@@ -194,6 +194,19 @@ void ghostty_terminal_vt_write(GhosttyTerminal terminal,
 void ghostty_terminal_scroll_viewport(GhosttyTerminal terminal,
                                       GhosttyTerminalScrollViewport behavior);
 
+/**
+ * Get the current cursor position.
+ *
+ * @param terminal The terminal handle
+ * @param x Pointer to store the x coordinate (column)
+ * @param y Pointer to store the y coordinate (row)
+ *
+ * @ingroup terminal
+ */
+void ghostty_terminal_cursor_pos(GhosttyTerminal terminal,
+                                 uint16_t* x,
+                                 uint16_t* y);
+
 /** @} */
 
 #ifdef __cplusplus

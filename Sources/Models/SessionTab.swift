@@ -1,8 +1,11 @@
 import Foundation
+import Observation
 
-struct SessionTab: Identifiable, Hashable {
+@Observable
+final class SessionTab: Identifiable {
     let id: UUID
     let connection: SSHConnection
+    var terminalModel: TerminalSessionViewModel?
 
     init(connection: SSHConnection) {
         self.id = UUID()

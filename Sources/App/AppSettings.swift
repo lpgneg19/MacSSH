@@ -11,25 +11,10 @@ final class AppSettings {
         var id: String { rawValue }
     }
 
-    enum RendererMode: String, CaseIterable, Identifiable, Codable {
-        case vt
-        case ghosttySurface
-
-        var id: String { rawValue }
-
-        var label: String {
-            switch self {
-            case .vt: return String(localized: "VT (SSH)")
-            case .ghosttySurface: return String(localized: "Ghostty Surface (Local Shell)")
-            }
-        }
-    }
-
     private enum Keys {
         static let fontSize = "terminalFontSize"
         static let fontName = "terminalFontName"
         static let theme = "terminalTheme"
-        static let renderer = "terminalRenderer"
         static let vibrancyEnabled = "vibrancyEnabled"
         static let showGrid = "showGrid"
         static let terminalGlow = "terminalGlow"
@@ -47,9 +32,6 @@ final class AppSettings {
         didSet { save() }
     }
 
-    var renderer: RendererMode {
-        didSet { save() }
-    }
 
     var vibrancyEnabled: Bool {
         didSet { save() }
@@ -72,11 +54,6 @@ final class AppSettings {
             self.theme = theme
         } else {
             self.theme = .system
-        }
-        if let raw = defaults.string(forKey: Keys.renderer), let renderer = RendererMode(rawValue: raw) {
-            self.renderer = renderer
-        } else {
-            self.renderer = .vt
         }
         vibrancyEnabled = defaults.object(forKey: Keys.vibrancyEnabled) as? Bool ?? true
         showGrid = defaults.object(forKey: Keys.showGrid) as? Bool ?? false
@@ -114,7 +91,6 @@ final class AppSettings {
         defaults.set(fontSize, forKey: Keys.fontSize)
         defaults.set(fontName, forKey: Keys.fontName)
         defaults.set(theme.rawValue, forKey: Keys.theme)
-        defaults.set(renderer.rawValue, forKey: Keys.renderer)
         defaults.set(vibrancyEnabled, forKey: Keys.vibrancyEnabled)
         defaults.set(showGrid, forKey: Keys.showGrid)
         defaults.set(terminalGlow, forKey: Keys.terminalGlow)

@@ -1,10 +1,22 @@
 import Foundation
 import Observation
 
+enum SidebarItem: Hashable, Identifiable {
+    case localTerminal
+    case connection(SSHConnection.ID)
+    
+    var id: String {
+        switch self {
+        case .localTerminal: return "localTerminal"
+        case .connection(let id): return id.uuidString
+        }
+    }
+}
+
 @Observable
 final class AppModel {
     var connections: [SSHConnection]
-    var selection: SSHConnection.ID?
+    var sidebarSelection: SidebarItem?
     var searchText: String = ""
 
     var openTabs: [SessionTab] = []
@@ -32,18 +44,16 @@ final class AppModel {
         if stored.isEmpty {
             let seed = SSHConnection(name: "Example", host: "example.com", port: 22, username: "root")
             connections = [seed]
-            selection = seed.id
         } else {
             connections = stored
-            selection = stored.first?.id
         }
-
+        sidebarSelection = .localTerminal
         restoreTabs()
     }
 
     var selectedConnection: SSHConnection? {
-        guard let selection else { return nil }
-        return connections.first { $0.id == selection }
+        guard case .connection(let id) = sidebarSelection else { return nil }
+        return connections.first { $0.id == id }
     }
 
     var selectedTab: SessionTab? {
@@ -57,15 +67,19 @@ final class AppModel {
         } else {
             connections.append(connection)
         }
-        selection = connection.id
+        sidebarSelection = .connection(connection.id)
         persist()
     }
 
     func removeSelectedConnection() {
-        guard let selection else { return }
-        connections.removeAll { $0.id == selection }
-        openTabs.removeAll { $0.connection.id == selection }
-        self.selection = connections.first?.id
+        guard case .connection(let id) = sidebarSelection else { return }
+        connections.removeAll { $0.id == id }
+        openTabs.removeAll { $0.connection.id == id }
+        if let first = connections.first {
+            sidebarSelection = .connection(first.id)
+        } else {
+            sidebarSelection = .localTerminal
+        }
         if !openTabs.contains(where: { $0.id == selectedTabID }) {
             selectedTabID = openTabs.first?.id
         }
@@ -75,12 +89,14 @@ final class AppModel {
     func openConnection(_ connection: SSHConnection) {
         if let existing = openTabs.first(where: { $0.connection.id == connection.id }) {
             selectedTabID = existing.id
+            sidebarSelection = .connection(existing.connection.id)
             persistTabs()
             return
         }
         let tab = SessionTab(connection: connection)
         openTabs.append(tab)
         selectedTabID = tab.id
+        sidebarSelection = .connection(connection.id)
         persistTabs()
     }
 
@@ -88,14 +104,14 @@ final class AppModel {
         openTabs.removeAll { $0.id == tabID }
         if selectedTabID == tabID {
             selectedTabID = openTabs.last?.id
+            if let lastTabConnectionID = openTabs.last?.connection.id {
+                sidebarSelection = .connection(lastTabConnectionID)
+            }
         }
         persistTabs()
     }
 
-    func moveTab(from source: IndexSet, to destination: Int) {
-        openTabs.move(fromOffsets: source, toOffset: destination)
-        persistTabs()
-    }
+
 
     func requestReconnect(connectionID: SSHConnection.ID) {
         reconnectRequests[connectionID] = UUID()
@@ -106,10 +122,12 @@ final class AppModel {
         guard let currentID = selectedTabID,
               let index = openTabs.firstIndex(where: { $0.id == currentID }) else {
             selectedTabID = openTabs.first?.id
+            sidebarSelection = .connection(openTabs.first!.connection.id)
             return
         }
         let nextIndex = (index + 1) % openTabs.count
         selectedTabID = openTabs[nextIndex].id
+        sidebarSelection = .connection(openTabs[nextIndex].connection.id)
     }
 
     func previousTab() {
@@ -117,15 +135,18 @@ final class AppModel {
         guard let currentID = selectedTabID,
               let index = openTabs.firstIndex(where: { $0.id == currentID }) else {
             selectedTabID = openTabs.last?.id
+            sidebarSelection = .connection(openTabs.last!.connection.id)
             return
         }
         let nextIndex = (index - 1 + openTabs.count) % openTabs.count
         selectedTabID = openTabs[nextIndex].id
+        sidebarSelection = .connection(openTabs[nextIndex].connection.id)
     }
 
     func selectTab(at index: Int) {
         guard index >= 0 && index < openTabs.count else { return }
         selectedTabID = openTabs[index].id
+        sidebarSelection = .connection(openTabs[index].connection.id)
     }
 
     func exportConnections(to url: URL) {
@@ -141,7 +162,9 @@ final class AppModel {
         case .replace:
             connections = imported
         }
-        selection = connections.first?.id
+        if let first = connections.first {
+            sidebarSelection = .connection(first.id)
+        }
         persist()
     }
 
@@ -180,11 +203,18 @@ final class AppModel {
         openTabs = tabs
 
         if let selectedID = defaults.string(forKey: TabKeys.selectedTabConnection),
+           let uuid = UUID(uuidString: selectedID),
            let selectedConnection = connectionsByID[selectedID],
            let tab = openTabs.first(where: { $0.connection.id == selectedConnection.id }) {
             selectedTabID = tab.id
+            sidebarSelection = .connection(uuid)
         } else {
             selectedTabID = openTabs.first?.id
+            if let firstID = openTabs.first?.connection.id {
+                sidebarSelection = .connection(firstID)
+            } else {
+                sidebarSelection = .localTerminal
+            }
         }
     }
 }

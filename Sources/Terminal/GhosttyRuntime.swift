@@ -2,6 +2,26 @@ import AppKit
 import Foundation
 import GhosttyKit
 
+// Use a top-level function for the C callback to ensure NO implicit actor isolation.
+// This is critical because this function is called from Ghostty's background renderer thread.
+private func ghostty_wakeup_callback(userdata: UnsafeMutableRawPointer?) {
+    guard let userdata else { return }
+    
+    // Convert the pointer to an Int (bit pattern). Int is Sendable, 
+    // which allows it to cross from the background thread to the MainActor 
+    // without triggering Swift 6's data race detection for UnsafeMutableRawPointer.
+    let bitPattern = Int(bitPattern: userdata)
+    
+    DispatchQueue.main.async {
+        // Re-construct the pointer from the bit pattern on the main thread.
+        guard let opaque = UnsafeMutableRawPointer(bitPattern: bitPattern) else { return }
+        
+        // Now on the main thread, we can safely re-acquire the GhosttyRuntime (which is @MainActor)
+        let runtime = Unmanaged<GhosttyRuntime>.fromOpaque(opaque).takeUnretainedValue()
+        runtime.appTick()
+    }
+}
+
 @MainActor
 final class GhosttyRuntime {
     static let shared = GhosttyRuntime()
@@ -19,33 +39,25 @@ final class GhosttyRuntime {
         }
         self.config = cfg
 
-        var runtimeCfg = ghostty_runtime_config_s(
-            userdata: Unmanaged.passUnretained(self).toOpaque(),
-            supports_selection_clipboard: true,
-            wakeup_cb: { userdata in
-                guard let userdata else { return }
-                DispatchQueue.main.async {
-                    let runtime = Unmanaged<GhosttyRuntime>.fromOpaque(userdata).takeUnretainedValue()
-                    runtime.appTick()
-                }
-            },
-            action_cb: { _, _, _ in
-                false
-            },
-            read_clipboard_cb: { _, _, _ in
-                false
-            },
-            confirm_read_clipboard_cb: { _, _, _, _ in },
-            write_clipboard_cb: { _, _, _, _, _ in },
-            close_surface_cb: { _, _ in }
-        )
+        // ghostty_runtime_config_s members are @convention(c)
+        var runtimeCfg = ghostty_runtime_config_s()
+        runtimeCfg.userdata = Unmanaged.passUnretained(self).toOpaque()
+        runtimeCfg.supports_selection_clipboard = true
+        runtimeCfg.wakeup_cb = ghostty_wakeup_callback
+        
+        // Use empty closures for other callbacks to avoid any potential isolation issues in inline closures
+        runtimeCfg.action_cb = { _, _, _ in false }
+        runtimeCfg.read_clipboard_cb = { _, _, _ in false }
+        runtimeCfg.confirm_read_clipboard_cb = { _, _, _, _ in }
+        runtimeCfg.write_clipboard_cb = { _, _, _, _, _ in }
+        runtimeCfg.close_surface_cb = { _, _ in }
 
         if let cfg {
             self.app = ghostty_app_new(&runtimeCfg, cfg)
         }
     }
 
-    private func appTick() {
+    fileprivate func appTick() {
         guard let app else { return }
         ghostty_app_tick(app)
     }

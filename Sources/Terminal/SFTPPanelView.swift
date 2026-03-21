@@ -107,7 +107,7 @@ struct SFTPPanelView: View {
                             .tint(.white)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Transferring...", comment: "SFTP transfer status")
+                            Text(String(localized: "Transferring...", comment: "SFTP transfer status"))
                                 .font(.system(size: 11, weight: .bold))
                             Text(filename)
                                 .font(.system(size: 10, weight: .medium))
@@ -150,7 +150,6 @@ struct SFTPPanelView: View {
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: model.status)
         }
         .frame(minWidth: 280)
-        .onAppear { model.refresh() }
     }
 
     private var selectedItems: [SFTPItem] {

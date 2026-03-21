@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LocalTerminalView: View {
     let settings: AppSettings
+    @Environment(\.openSettings) private var openSettings
     @State private var tabIDs: [UUID] = [UUID()]
     @State private var selectedTabID: UUID?
 
@@ -20,7 +21,6 @@ struct LocalTerminalView: View {
                     }
             }
         }
-        .ignoresSafeArea()
         .navigationTitle(String(localized: "Local Terminal"))
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
@@ -42,7 +42,11 @@ struct LocalTerminalView: View {
                 .disabled(tabIDs.count <= 1)
 
                 Button {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    if #available(macOS 14.0, *) {
+                        try? openSettings()
+                    } else {
+                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    }
                 } label: {
                     Label(String(localized: "Settings"), systemImage: "gearshape")
                 }
@@ -50,7 +54,7 @@ struct LocalTerminalView: View {
             }
             
             ToolbarItem(placement: .status) {
-                Text("Ghostty Engine")
+                Text(String(localized: "Native Ghostty Engine"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

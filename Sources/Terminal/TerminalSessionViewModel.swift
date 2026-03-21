@@ -18,12 +18,11 @@ final class TerminalSessionViewModel {
     }
 
     let connection: SSHConnection
-    private let engine: VTTerminalEngine
     private let session: SSHSession
     let sftpService: SFTPService
+    let sftpViewModel: SFTPViewModel
 
     var status: Status = .idle
-    var displayText: String = ""
     var password: String = ""
     var rememberPassword: Bool = false
     var usePublicKey: Bool = false
@@ -31,12 +30,16 @@ final class TerminalSessionViewModel {
     var keyPassphrase: String = ""
     var hostKeyPrompt: HostKeyPrompt?
     var lastErrorMessage: String = ""
+    
+    // Rows/Cols are now managed by the Metal view, but we keep them for logic/API if needed
+    var cols: UInt16 = 80
+    var rows: UInt16 = 24
 
     init(connection: SSHConnection) {
         self.connection = connection
-        self.engine = VTTerminalEngine()
         self.session = SSHSession()
         self.sftpService = SFTPService(session: self.session)
+        self.sftpViewModel = SFTPViewModel(service: self.sftpService)
 
         let account = connection.keychainAccount
         if let stored = KeychainStore.loadPassword(account: account) {
@@ -44,12 +47,20 @@ final class TerminalSessionViewModel {
             self.rememberPassword = true
         }
 
-        if let defaultKey = connection.defaultKeyPath {
-            self.keyPath = defaultKey
+        self.usePublicKey = connection.usePublicKey
+        if connection.usePublicKey {
+            if let customKey = connection.keyPath, !customKey.isEmpty {
+                self.keyPath = customKey
+            } else if let defaultKey = connection.defaultKeyPath {
+                self.keyPath = defaultKey
+            }
         }
+    }
 
-        Task {
-            seed()
+    deinit {
+        let activeSession = self.session
+        Task.detached {
+            await activeSession.disconnect()
         }
     }
 
@@ -61,10 +72,10 @@ final class TerminalSessionViewModel {
 
         Task {
             do {
-                let stream = try await session.connect(connection: connection, auth: auth)
+                _ = try await session.connect(connection: connection, auth: auth)
                 status = .connected
                 handlePasswordPersistence(auth)
-                await readLoop(stream)
+                sftpViewModel.refresh()
             } catch let error as SSHError {
                 switch error {
                 case .hostKeyNotTrusted(let status):
@@ -72,14 +83,10 @@ final class TerminalSessionViewModel {
                     self.status = .idle
                 default:
                     self.status = .failed(error.localizedDescription)
-                    let errorLabel = String(localized: "[error]")
-                    append(text: "\n\(errorLabel) \(error.localizedDescription)\n")
                 }
             } catch {
                 status = .failed(error.localizedDescription)
                 lastErrorMessage = error.localizedDescription
-                let errorLabel = String(localized: "[error]")
-                append(text: "\n\(errorLabel) \(error.localizedDescription)\n")
             }
         }
     }
@@ -90,52 +97,21 @@ final class TerminalSessionViewModel {
         let auth = makeAuth()
         Task {
             do {
-                let stream = try await session.acceptHostKeyAndConnect(auth: auth)
+                _ = try await session.acceptHostKeyAndConnect(auth: auth)
                 hostKeyPrompt = nil
                 status = .connected
                 handlePasswordPersistence(auth)
-                await readLoop(stream)
             } catch {
                 status = .failed(error.localizedDescription)
                 lastErrorMessage = error.localizedDescription
-                let errorLabel = String(localized: "[error]")
-                append(text: "\n\(errorLabel) \(error.localizedDescription)\n")
             }
         }
     }
 
     func disconnect() {
         Task {
+            await session.disconnect()
             status = .idle
-            append(text: "\n" + String(localized: "[disconnected]") + "\n")
-        }
-    }
-
-    func reconnect() async -> Bool {
-        await session.disconnect()
-        status = .connecting
-        let auth = makeAuth()
-        do {
-            let stream = try await session.connect(connection: connection, auth: auth)
-            status = .connected
-            handlePasswordPersistence(auth)
-            Task { await readLoop(stream) }
-            return true
-        } catch {
-            status = .failed(error.localizedDescription)
-            lastErrorMessage = error.localizedDescription
-            return false
-        }
-    }
-
-    func sendBytes(_ data: Data) {
-        Task {
-            do {
-                try await session.send(data)
-            } catch {
-                let errorLabel = String(localized: "[send error]")
-                append(text: "\n\(errorLabel) \(error.localizedDescription)\n")
-            }
         }
     }
 
@@ -156,24 +132,5 @@ final class TerminalSessionViewModel {
                 KeychainStore.deletePassword(account: account)
             }
         }
-    }
-
-    private func readLoop(_ stream: AsyncStream<Data>) async {
-        for await data in stream {
-            let formatted = engine.write(data)
-            displayText = formatted
-        }
-        status = .idle
-    }
-
-    private func append(text: String) {
-        let formatted = engine.write(Data(text.utf8))
-        displayText = formatted
-    }
-
-    private func seed() {
-        let banner = String(localized: "MacSSH ready. Connect to start a session.\n")
-        let formatted = engine.write(Data(banner.utf8))
-        displayText = formatted
     }
 }

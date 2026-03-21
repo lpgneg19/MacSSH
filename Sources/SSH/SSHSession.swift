@@ -219,11 +219,6 @@ actor SSHSession {
             throw SSHError.shellFailed(shellResult)
         }
 
-        // Nudge interactive shells to render the initial prompt.
-        _ = "\r".withCString { ptr in
-            libssh2_channel_write_ex(channel, 0, ptr, 1)
-        }
-
         state = .connected
         libssh2_session_set_blocking(session, 0)
         return startReadingLoop()
