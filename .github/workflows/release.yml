@@ -1,0 +1,153 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    name: Check Version Change
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+      changelog: ${{ steps.check.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+          lfs: true
+
+      - name: Extract Version and Notes
+        id: check
+        run: |
+          # Extract current version
+          VERSION=$(grep -m 1 "## \[" CHANGELOG.md | sed -E 's/## \[(.*)\].*/\1/')
+          echo "Current Version: $VERSION"
+          
+          # Extract previous version
+          git checkout HEAD^ CHANGELOG.md || true
+          PREV_VERSION=$(grep -m 1 "## \[" CHANGELOG.md | sed -E 's/## \[(.*)\].*/\1/')
+          echo "Previous Version: $PREV_VERSION"
+          
+          # Restore current CHANGELOG.md
+          git checkout HEAD CHANGELOG.md
+          
+          # Extract latest changelog section using awk to grab everything between the first and second '## ['
+          CHANGELOG=$(awk '/^## \[/ { count++; if (count == 2) exit; next } count == 1 { print }' CHANGELOG.md)
+          
+          # Determine if we should release
+          SHOULD_RELEASE="false"
+          if [ "$VERSION" != "$PREV_VERSION" ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            SHOULD_RELEASE="true"
+          fi
+          
+          echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Multi-line output for changelog
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  build-release:
+    name: Build and Release
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Setup Xcode
+        uses: lpgneg19/setup-xcode@main
+        with:
+          xcode-version: latest-stable
+
+      - name: Install Tooling
+        run: brew install xcodegen create-dmg
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Build Archive
+        run: |
+          xcodebuild archive \
+            -project MacSSH.xcodeproj \
+            -scheme MacSSH \
+            -configuration Release \
+            -archivePath build/MacSSH.xcarchive \
+            -derivedDataPath build/DerivedData \
+            ARCHS=arm64 \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export App
+        run: |
+          mkdir -p build/Export
+          # We create a dummy ExportOptions.plist since we aren't signing for App Store/Distribution yet
+          cat <<EOF > build/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>developer-id</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+          </dict>
+          </plist>
+          EOF
+          
+          cp -R build/MacSSH.xcarchive/Products/Applications/MacSSH.app build/Export/
+          cd build/Export
+          zip -r ../../MacSSH-AppleSilicon.zip MacSSH.app
+          
+          # Create DMG
+          create-dmg \
+            --volname "MacSSH" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "MacSSH.app" 175 190 \
+            --hide-extension "MacSSH.app" \
+            --app-drop-link 425 190 \
+            "../../MacSSH-AppleSilicon.dmg" \
+            "MacSSH.app"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: v${{ needs.check-version.outputs.version }}
+          body: ${{ needs.check-version.outputs.changelog }}
+          files: |
+            MacSSH-AppleSilicon.zip
+            MacSSH-AppleSilicon.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew Cask
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          DMG_NAME="MacSSH-AppleSilicon.dmg"
+          SHA256=$(shasum -a 256 "$DMG_NAME" | awk '{print $1}')
+          
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/lpgneg19/homebrew-tap.git tap-repo
+          cd tap-repo
+          
+          sed -i '' "s/version \".*\"/version \"$VERSION\"/" Casks/macssh.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" Casks/macssh.rb
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/macssh.rb
+          git commit -m "Update macssh to $VERSION"
+          git push
