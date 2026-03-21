@@ -107,30 +107,65 @@ final class GhosttySurfaceView: NSView {
 
     override func scrollWheel(with event: NSEvent) {
         guard let surface = surface.value else { return }
-        let deltaY = event.scrollingDeltaY
-        guard abs(deltaY) > 0.1 else { return }
 
-        // macOS up-arrow = 0x7E, down-arrow = 0x7D.
-        // scrollingDeltaY > 0  → user dragged finger up → content scrolls up → we need "up-arrow" to walk
-        // through scrollback (older lines).
-        let arrowKeyCode: UInt32 = deltaY > 0 ? 0x7E : 0x7D
-        let rows = max(1, Int(abs(deltaY) / 3.0))
+        // First tell Ghostty where the mouse is so it can resolve the correct surface
+        let loc = convert(event.locationInWindow, from: nil)
+        ghostty_surface_mouse_pos(surface, loc.x, bounds.height - loc.y,
+                                  ghostty_input_mods_e(GHOSTTY_MODS_NONE.rawValue))
 
-        for _ in 0..<rows {
-            var pressEvent = ghostty_input_key_s()
-            pressEvent.action = GHOSTTY_ACTION_PRESS
-            pressEvent.keycode = arrowKeyCode
-            pressEvent.mods = ghostty_input_mods_e(GHOSTTY_MODS_NONE.rawValue)
-            pressEvent.consumed_mods = ghostty_input_mods_e(GHOSTTY_MODS_NONE.rawValue)
-            pressEvent.composing = false
-            pressEvent.text = nil
-            pressEvent.unshifted_codepoint = 0
-            ghostty_surface_key(surface, pressEvent)
+        // Build scroll mods:
+        //   bit 0 = precision_scroll (trackpad / smooth scroll events)
+        //   bit 1 = momentum_scroll  (kinetic deceleration phase)
+        //   bit 2 = begin            (gesture began)
+        //   bit 3 = end              (gesture ended)
+        var scrollMods: Int32 = 0
 
-            var releaseEvent = pressEvent
-            releaseEvent.action = GHOSTTY_ACTION_RELEASE
-            ghostty_surface_key(surface, releaseEvent)
+        let isPrecise = event.hasPreciseScrollingDeltas
+        if isPrecise { scrollMods |= 1 }
+
+        // Treat either non-stationary phase or non-empty momentumPhase as momentum
+        let hasMomentum = (event.momentumPhase != []) || (event.phase == .changed && event.momentumPhase != [])
+        if hasMomentum { scrollMods |= 2 }
+
+        if event.phase == .began { scrollMods |= 1 << 2 }
+        if event.phase == .ended || event.phase == .cancelled { scrollMods |= 1 << 3 }
+
+        // Reduce tiny jitter during .mayBegin to better match NSScrollView feel
+        if event.phase == .mayBegin {
+            let threshold: CGFloat = 0.5
+            if abs(event.scrollingDeltaX) < threshold && abs(event.scrollingDeltaY) < threshold {
+                return
+            }
         }
+
+        // Use precise pixel deltas for trackpad; scale line-based mouse wheel for comparable feel
+        let deltaX: CGFloat
+        let deltaY: CGFloat
+        if isPrecise {
+            deltaX = event.scrollingDeltaX
+            // Ghostty treats y as positive-down, macOS scrollingDeltaY is positive-up → negate
+            deltaY = -event.scrollingDeltaY
+        } else {
+            // Fallback to line deltas when available, otherwise scale scrollingDelta for mouse wheels
+            let lineScale: CGFloat = 10.0
+            let lx = event.hasPreciseScrollingDeltas ? 0 : (event.scrollingDeltaX)
+            let ly = event.hasPreciseScrollingDeltas ? 0 : (event.scrollingDeltaY)
+            let lineX = event.isDirectionInvertedFromDevice ? -event.scrollingDeltaX : event.scrollingDeltaX
+            let lineY = event.isDirectionInvertedFromDevice ? -event.scrollingDeltaY : event.scrollingDeltaY
+            // Prefer lineDelta when provided by the system; otherwise use scaled deltas
+            if event.scrollingDeltaX == 0 && event.scrollingDeltaY == 0 {
+                deltaX = 0
+                deltaY = 0
+            } else {
+                deltaX = (event.hasPreciseScrollingDeltas ? lx : lineX) * lineScale
+                deltaY = -(event.hasPreciseScrollingDeltas ? ly : lineY) * lineScale
+            }
+        }
+
+        ghostty_surface_mouse_scroll(surface,
+                                     deltaX,
+                                     deltaY,
+                                     scrollMods)
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
