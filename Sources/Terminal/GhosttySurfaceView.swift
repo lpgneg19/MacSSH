@@ -68,6 +68,7 @@ final class GhosttySurfaceView: NSView {
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
         updateContentScale()
+        updateSurfaceSize()
     }
 
     override func keyDown(with event: NSEvent) {
@@ -146,19 +147,15 @@ final class GhosttySurfaceView: NSView {
             // Ghostty treats y as positive-down, macOS scrollingDeltaY is positive-up → negate
             deltaY = -event.scrollingDeltaY
         } else {
-            // Fallback to line deltas when available, otherwise scale scrollingDelta for mouse wheels
+            // For normal mouse wheels, just scale the given delta.
+            // macOS has already resolved natural scrolling into scrollingDeltaY!
             let lineScale: CGFloat = 10.0
-            let lx = event.hasPreciseScrollingDeltas ? 0 : (event.scrollingDeltaX)
-            let ly = event.hasPreciseScrollingDeltas ? 0 : (event.scrollingDeltaY)
-            let lineX = event.isDirectionInvertedFromDevice ? -event.scrollingDeltaX : event.scrollingDeltaX
-            let lineY = event.isDirectionInvertedFromDevice ? -event.scrollingDeltaY : event.scrollingDeltaY
-            // Prefer lineDelta when provided by the system; otherwise use scaled deltas
             if event.scrollingDeltaX == 0 && event.scrollingDeltaY == 0 {
-                deltaX = 0
-                deltaY = 0
+                deltaX = event.deltaX * lineScale
+                deltaY = -event.deltaY * lineScale
             } else {
-                deltaX = (event.hasPreciseScrollingDeltas ? lx : lineX) * lineScale
-                deltaY = -(event.hasPreciseScrollingDeltas ? ly : lineY) * lineScale
+                deltaX = event.scrollingDeltaX * lineScale
+                deltaY = -event.scrollingDeltaY * lineScale
             }
         }
 

@@ -15,6 +15,7 @@ struct LocalTerminalView: View {
         TabView(selection: $selectedTabID) {
             ForEach(tabIDs, id: \.self) { id in
                 GhosttyTerminalView(settings: settings)
+                    .ignoresSafeArea(.container, edges: .bottom)
                     .tag(id as UUID?)
                     .tabItem {
                         Label(String(localized: "Local"), systemImage: "terminal")

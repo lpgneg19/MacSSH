@@ -28,6 +28,7 @@ struct TerminalView: View {
             GhosttyTerminalView(tab: tab, settings: settings)
                 .id("ghostty-\(tab.id)-\(settings.fontSize)-\(appModel.reconnectRequests[tab.connection.id]?.uuidString ?? "")")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea(.container, edges: .bottom)
         }
         .navigationTitle(tab.connection.name)
         .toolbar {
