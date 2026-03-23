@@ -54,11 +54,6 @@ struct LocalTerminalView: View {
                 .help(String(localized: "Open Application Settings"))
             }
             
-            ToolbarItem(placement: .status) {
-                Text(String(localized: "Native Ghostty Engine"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 

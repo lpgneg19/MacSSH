@@ -47,11 +47,18 @@ final class GhosttySurfaceView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         updateContentScale()
-        // Re-evaluate size after the window has assigned us a proper frame
+        // First async pass: size may not be final yet (SwiftUI layout in-flight)
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.updateSurfaceSize()
             self.window?.makeFirstResponder(self)
+        }
+        // Second pass with a short delay: ensures the PTY receives the correct
+        // TIOCSWINSZ *after* Auto Layout has fully resolved the view frame.
+        // Without this, $COLUMNS reports the Ghostty default (80) and tools like
+        // `brew` truncate their output.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.updateSurfaceSize()
         }
     }
 
@@ -139,24 +146,16 @@ final class GhosttySurfaceView: NSView {
             }
         }
 
-        // Use precise pixel deltas for trackpad; scale line-based mouse wheel for comparable feel
-        let deltaX: CGFloat
+        // macOS scrollingDeltaY is already adjusted for the "Natural Scrolling"
+        // preference, so pass it directly. Ghostty's Y axis is positive-up
+        // (same convention as macOS), so no negation needed.
+        let deltaX = event.scrollingDeltaX
         let deltaY: CGFloat
         if isPrecise {
-            deltaX = event.scrollingDeltaX
-            // Ghostty treats y as positive-down, macOS scrollingDeltaY is positive-up → negate
-            deltaY = -event.scrollingDeltaY
+            deltaY = event.scrollingDeltaY
         } else {
-            // For normal mouse wheels, just scale the given delta.
-            // macOS has already resolved natural scrolling into scrollingDeltaY!
             let lineScale: CGFloat = 10.0
-            if event.scrollingDeltaX == 0 && event.scrollingDeltaY == 0 {
-                deltaX = event.deltaX * lineScale
-                deltaY = -event.deltaY * lineScale
-            } else {
-                deltaX = event.scrollingDeltaX * lineScale
-                deltaY = -event.scrollingDeltaY * lineScale
-            }
+            deltaY = (event.scrollingDeltaY != 0 ? event.scrollingDeltaY : event.deltaY) * lineScale
         }
 
         ghostty_surface_mouse_scroll(surface,
