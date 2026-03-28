@@ -107,74 +107,53 @@ struct ContentView: View {
             .navigationTitle(String(localized: "MacSSH"))
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button {
-                            editorConnection = SSHConnection(name: "", host: "", port: 22, username: "")
-                        } label: {
-                            Label(String(localized: "Add Connection"), systemImage: "plus")
-                        }
-                        .keyboardShortcut("n", modifiers: .command)
-                        .help(String(localized: "Create a new SSH connection profile"))
-                        
-                        Button {
-                            if let selected = model.selectedConnection {
-                                editorConnection = selected
-                            }
-                        } label: {
-                            Label(String(localized: "Edit"), systemImage: "pencil")
-                        }
-                        .disabled(model.selectedConnection == nil)
-                        .help(String(localized: "Edit Connection Profile"))
-                        
-                        Button(role: .destructive) {
-                            showingDeleteAlert = true
-                        } label: {
-                            Label(String(localized: "Delete"), systemImage: "trash")
-                        }
-                        .disabled(model.selectedConnection == nil)
-                        .help(String(localized: "Delete Connection"))
-
-                        Divider()
-
-                        Button {
-                            exportConnections()
-                        } label: {
-                            Label(String(localized: "Export Connections..."), systemImage: "square.and.arrow.up")
-                        }
-                        
-                        Button {
-                            importConnections()
-                        } label: {
-                            Label(String(localized: "Import Connections..."), systemImage: "square.and.arrow.down")
-                        }
+                    Button {
+                        editorConnection = SSHConnection(name: "", host: "", port: 22, username: "")
                     } label: {
-                        Label(String(localized: "Manage Connections"), systemImage: "ellipsis.circle")
+                        Label(String(localized: "Add Connection"), systemImage: "plus")
                     }
-                    .menuIndicator(.hidden)
+                    .keyboardShortcut("n", modifiers: .command)
+                    .help(String(localized: "Create a new SSH connection profile"))
                 }
             }
         } detail: {
-            if case .localTerminal = model.sidebarSelection {
-                LocalTerminalView(settings: settings)
-            } else if let conn = model.selectedConnection {
-                if let tab = model.openTabs.first(where: { $0.connection.id == conn.id }) {
-                    TerminalView(tab: tab, settings: settings, appModel: model)
-                        .id(tab.id)
-                } else {
-                    ContentUnavailableView {
-                        Label(conn.name, systemImage: "terminal")
-                    } description: {
-                        Text(String(localized: "Connection is not open."))
-                    } actions: {
-                        Button(String(localized: "Open Connection")) {
-                            model.openConnection(conn)
+            Group {
+                if model.sidebarSelection == .localTerminal {
+                    LocalTerminalView(settings: settings, appModel: model)
+                } else if case .connection(let id) = model.sidebarSelection {
+                    if let tab = model.openTabs.first(where: { $0.connection.id == id }) {
+                        // Connection is OPEN (has a session tab)
+                        TerminalView(tab: tab, settings: settings, appModel: model)
+                    } else if let conn = model.connections.first(where: { $0.id == id }) {
+                        // Connection is NOT open (placeholder view)
+                        ContentUnavailableView {
+                            Label(conn.name, systemImage: "terminal")
+                        } description: {
+                            Text(String(localized: "Connection is not open."))
+                        } actions: {
+                            Button(String(localized: "Open Connection")) {
+                                model.openConnection(conn)
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .toolbar {
+                            ToolbarItemGroup(placement: .primaryAction) {
+                                Button {
+                                    model.openConnection(conn)
+                                } label: {
+                                    Label(String(localized: "Connect"), systemImage: "play.fill")
+                                }
+                                .help(String(localized: "Open SSH Session"))
+                            }
+                        }
+                    } else {
+                        EmptyStateView()
                     }
+                } else {
+                    EmptyStateView()
                 }
-            } else {
-                EmptyStateView()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationSplitViewStyle(.balanced)
         .sheet(item: $editorConnection) { connection in

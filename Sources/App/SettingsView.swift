@@ -2,9 +2,14 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var settings: AppSettings
+    @Bindable var model: AppModel
+    
+    @State private var pendingImportURL: URL?
+    @State private var showImportDialog: Bool = false
+    @State private var importMode: ImportMode = .merge
     
     private enum Tab: String, CaseIterable, Identifiable {
-        case general, appearance, terminal, sftp, about
+        case general, appearance, terminal, sftp, data, about
         var id: String { rawValue }
         
         var label: String {
@@ -13,6 +18,7 @@ struct SettingsView: View {
             case .appearance: return String(localized: "Appearance")
             case .terminal: return String(localized: "Terminal")
             case .sftp: return String(localized: "SFTP")
+            case .data: return String(localized: "Data")
             case .about: return String(localized: "About")
             }
         }
@@ -23,6 +29,7 @@ struct SettingsView: View {
             case .appearance: return "paintpalette"
             case .terminal: return "terminal"
             case .sftp: return "folder.badge.plus"
+            case .data: return "square.and.arrow.up.on.square"
             case .about: return "info.circle"
             }
         }
@@ -56,6 +63,12 @@ struct SettingsView: View {
                 }
                 .tag(Tab.sftp)
             
+            dataTab
+                .tabItem {
+                    Label(Tab.data.label, systemImage: Tab.data.icon)
+                }
+                .tag(Tab.data)
+            
             aboutTab
                 .tabItem {
                     Label(Tab.about.label, systemImage: Tab.about.icon)
@@ -63,6 +76,25 @@ struct SettingsView: View {
                 .tag(Tab.about)
         }
         .frame(width: 500, height: 400)
+        .confirmationDialog(
+            String(localized: "Import Connections"),
+            isPresented: $showImportDialog,
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "Merge (Recommended)")) {
+                importMode = .merge
+                confirmImport()
+            }
+            Button(String(localized: "Replace All"), role: .destructive) {
+                importMode = .replace
+                confirmImport()
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {
+                pendingImportURL = nil
+            }
+        } message: {
+            Text(String(localized: "Choose how to import connections. 'Merge' will add new connections from the file, while 'Replace All' will remove all existing data first."))
+        }
     }
     
     private var generalTab: some View {
@@ -156,6 +188,61 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var dataTab: some View {
+        Form {
+            Section {
+                Text(String(localized: "Manage your connection data. You can back up all your SSH server configurations to a JSON file and restore them later."))
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text(String(localized: "Backup & Restore"))
+            }
+
+            Section {
+                Button {
+                    exportConnections()
+                } label: {
+                    Label(String(localized: "Export Connections..."), systemImage: "square.and.arrow.up")
+                }
+                
+                Button {
+                    importConnections()
+                } label: {
+                    Label(String(localized: "Import Connections..."), systemImage: "square.and.arrow.down")
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+    
+    // MARK: - Handlers
+    
+    private func exportConnections() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "connections.json"
+        panel.title = String(localized: "Export Connections")
+        if panel.runModal() == .OK, let url = panel.url {
+            model.exportConnections(to: url)
+        }
+    }
+
+    private func importConnections() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.title = String(localized: "Import Connections")
+        if panel.runModal() == .OK, let url = panel.url {
+            pendingImportURL = url
+            showImportDialog = true
+        }
+    }
+
+    private func confirmImport() {
+        guard let url = pendingImportURL else { return }
+        model.importConnections(from: url, mode: importMode)
+        pendingImportURL = nil
     }
     
     private var aboutTab: some View {

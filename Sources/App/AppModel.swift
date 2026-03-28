@@ -14,6 +14,7 @@ enum SidebarItem: Hashable, Identifiable {
 }
 
 @Observable
+@MainActor
 final class AppModel {
     var connections: [SSHConnection]
     var sidebarSelection: SidebarItem?
@@ -22,6 +23,11 @@ final class AppModel {
     var openTabs: [SessionTab] = []
     var selectedTabID: SessionTab.ID?
     var reconnectRequests: [SSHConnection.ID: UUID] = [:]
+
+    // Local terminal tab pool — lives at app scope so PTYs survive SwiftUI navigation
+    var localTabs: [LocalTerminalTab] = []
+    var selectedLocalTabID: UUID?
+    private var localTabCounter: Int = 0
 
     var filteredConnections: [SSHConnection] {
         if searchText.isEmpty {
@@ -86,6 +92,7 @@ final class AppModel {
         persist()
     }
 
+    @MainActor
     func openConnection(_ connection: SSHConnection) {
         if let existing = openTabs.first(where: { $0.connection.id == connection.id }) {
             selectedTabID = existing.id
@@ -111,42 +118,94 @@ final class AppModel {
         persistTabs()
     }
 
+    // MARK: - Local Terminal Tab Management
+
+    /// Creates a new local terminal tab with a pre-built surface and returns it.
+    @MainActor
+    func addLocalTab(config: GhosttySurfaceConfiguration) {
+        localTabCounter += 1
+        let surface = GhosttySurfaceView(config: config)
+        let tab = LocalTerminalTab(number: localTabCounter, surfaceView: surface)
+        localTabs.append(tab)
+        selectedLocalTabID = tab.id
+    }
+
+    /// Removes a local terminal tab by ID.
+    func removeLocalTab(_ id: UUID) {
+        localTabs.removeAll { $0.id == id }
+        selectedLocalTabID = localTabs.last?.id
+    }
 
 
+
+    @MainActor
     func requestReconnect(connectionID: SSHConnection.ID) {
+        // Clear the cached surface so the next makeNSView call starts a fresh PTY.
+        openTabs.first(where: { $0.connection.id == connectionID })?.cachedSurface = nil
         reconnectRequests[connectionID] = UUID()
     }
 
     func nextTab() {
-        guard !openTabs.isEmpty else { return }
-        guard let currentID = selectedTabID,
-              let index = openTabs.firstIndex(where: { $0.id == currentID }) else {
-            selectedTabID = openTabs.first?.id
-            sidebarSelection = .connection(openTabs.first!.connection.id)
-            return
+        if sidebarSelection == .localTerminal {
+            guard !localTabs.isEmpty else { return }
+            guard let currentID = selectedLocalTabID,
+                  let index = localTabs.firstIndex(where: { $0.id == currentID }) else {
+                selectedLocalTabID = localTabs.first?.id
+                return
+            }
+            let nextIndex = (index + 1) % localTabs.count
+            selectedLocalTabID = localTabs[nextIndex].id
+        } else {
+            guard !openTabs.isEmpty else { return }
+            guard let currentID = selectedTabID,
+                  let index = openTabs.firstIndex(where: { $0.id == currentID }) else {
+                selectedTabID = openTabs.first?.id
+                if let firstID = openTabs.first?.connection.id {
+                    sidebarSelection = .connection(firstID)
+                }
+                return
+            }
+            let nextIndex = (index + 1) % openTabs.count
+            selectedTabID = openTabs[nextIndex].id
+            sidebarSelection = .connection(openTabs[nextIndex].connection.id)
         }
-        let nextIndex = (index + 1) % openTabs.count
-        selectedTabID = openTabs[nextIndex].id
-        sidebarSelection = .connection(openTabs[nextIndex].connection.id)
     }
 
     func previousTab() {
-        guard !openTabs.isEmpty else { return }
-        guard let currentID = selectedTabID,
-              let index = openTabs.firstIndex(where: { $0.id == currentID }) else {
-            selectedTabID = openTabs.last?.id
-            sidebarSelection = .connection(openTabs.last!.connection.id)
-            return
+        if sidebarSelection == .localTerminal {
+            guard !localTabs.isEmpty else { return }
+            guard let currentID = selectedLocalTabID,
+                  let index = localTabs.firstIndex(where: { $0.id == currentID }) else {
+                selectedLocalTabID = localTabs.last?.id
+                return
+            }
+            let nextIndex = (index - 1 + localTabs.count) % localTabs.count
+            selectedLocalTabID = localTabs[nextIndex].id
+        } else {
+            guard !openTabs.isEmpty else { return }
+            guard let currentID = selectedTabID,
+                  let index = openTabs.firstIndex(where: { $0.id == currentID }) else {
+                selectedTabID = openTabs.last?.id
+                if let lastID = openTabs.last?.connection.id {
+                    sidebarSelection = .connection(lastID)
+                }
+                return
+            }
+            let nextIndex = (index - 1 + openTabs.count) % openTabs.count
+            selectedTabID = openTabs[nextIndex].id
+            sidebarSelection = .connection(openTabs[nextIndex].connection.id)
         }
-        let nextIndex = (index - 1 + openTabs.count) % openTabs.count
-        selectedTabID = openTabs[nextIndex].id
-        sidebarSelection = .connection(openTabs[nextIndex].connection.id)
     }
 
     func selectTab(at index: Int) {
-        guard index >= 0 && index < openTabs.count else { return }
-        selectedTabID = openTabs[index].id
-        sidebarSelection = .connection(openTabs[index].connection.id)
+        if sidebarSelection == .localTerminal {
+            guard index >= 0 && index < localTabs.count else { return }
+            selectedLocalTabID = localTabs[index].id
+        } else {
+            guard index >= 0 && index < openTabs.count else { return }
+            selectedTabID = openTabs[index].id
+            sidebarSelection = .connection(openTabs[index].connection.id)
+        }
     }
 
     func exportConnections(to url: URL) {
@@ -195,6 +254,7 @@ final class AppModel {
         }
     }
 
+    @MainActor
     private func restoreTabs() {
         let defaults = UserDefaults.standard
         let ids = defaults.stringArray(forKey: TabKeys.openTabConnections) ?? []

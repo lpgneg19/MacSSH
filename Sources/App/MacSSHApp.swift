@@ -46,17 +46,30 @@ struct MacSSHApp: App {
                 
                 Divider()
                 
-                ForEach(0..<min(model.openTabs.count, 9), id: \.self) { index in
-                    Button(model.openTabs[index].connection.name) {
-                        model.selectTab(at: index)
+                if model.sidebarSelection == .localTerminal {
+                    // Show Local Terminal tabs
+                    let tabs = Array(model.localTabs.prefix(9))
+                    ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                        Button(tab.name) {
+                            model.selectTab(at: index)
+                        }
+                        .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                     }
-                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                } else if !model.openTabs.isEmpty {
+                    // Show SSH session tabs (if any exist)
+                    let tabs = Array(model.openTabs.prefix(9))
+                    ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                        Button(tab.connection.name) {
+                            model.selectTab(at: index)
+                        }
+                        .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                    }
                 }
             }
         }
 
         Settings {
-            SettingsView(settings: settings)
+            SettingsView(settings: settings, model: model)
         }
     }
 }

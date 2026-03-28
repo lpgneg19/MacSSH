@@ -25,27 +25,42 @@ struct TerminalView: View {
         @Bindable var settings = self.settings
 
         VStack(spacing: 0) {
+            // Use GhosttyTerminalView which caches back into tab.cachedSurface on first make.
+            // The .id() on reconnectRequests causes it to discard the cached surface and
+            // build a fresh one, which reconnects the SSH session.
             GhosttyTerminalView(tab: tab, settings: settings)
-                .id("ghostty-\(tab.id)-\(settings.fontSize)-\(appModel.reconnectRequests[tab.connection.id]?.uuidString ?? "")")
+                .id("ghostty-\(tab.id)-\(appModel.reconnectRequests[tab.connection.id]?.uuidString ?? "")")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea(.container, edges: .bottom)
         }
         .navigationTitle(tab.connection.name)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    appModel.requestReconnect(connectionID: tab.connection.id)
-                } label: {
-                    Label(String(localized: "Reconnect"), systemImage: "arrow.clockwise")
+                let isConnected = model.status == .connected
+                
+                if !isConnected {
+                    Button {
+                        appModel.requestReconnect(connectionID: tab.connection.id)
+                    } label: {
+                        Label(String(localized: "Connect"), systemImage: "play.fill")
+                    }
+                    .help(String(localized: "Start Terminal Session"))
+                } else {
+                    Button {
+                        appModel.requestReconnect(connectionID: tab.connection.id)
+                    } label: {
+                        Label(String(localized: "Reconnect"), systemImage: "arrow.clockwise")
+                    }
+                    .help(String(localized: "Restart Terminal Session"))
                 }
-                .help(String(localized: "Restart Terminal Session"))
 
                 Button {
                     appModel.closeTab(tab.id)
                 } label: {
-                    Label(String(localized: "Disconnect"), systemImage: "network.slash")
+                    Label(String(localized: "Disconnect"), systemImage: "stop.fill")
                 }
                 .help(String(localized: "Close Session Tab"))
+                .foregroundStyle(.red)
 
                 Toggle(isOn: $showSftp) {
                     Label(String(localized: "SFTP"), systemImage: "sidebar.right")

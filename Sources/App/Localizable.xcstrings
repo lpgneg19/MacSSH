@@ -242,6 +242,16 @@
         }
       }
     },
+    "Backup & Restore" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份与恢复"
+          }
+        }
+      }
+    },
     "Browse" : {
       "localizations" : {
         "en" : {
@@ -382,7 +392,6 @@
       }
     },
     "Connect" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -512,6 +521,16 @@
         }
       }
     },
+    "Data" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据"
+          }
+        }
+      }
+    },
     "Delete" : {
       "localizations" : {
         "en" : {
@@ -593,6 +612,7 @@
       }
     },
     "Edit Connection Profile" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -801,7 +821,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "该链接在侧边栏中的显示效果。"
+            "value" : "此连接在侧边栏中的显示名称。"
           }
         }
       }
@@ -873,6 +893,7 @@
       }
     },
     "Local" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -947,6 +968,7 @@
       }
     },
     "Manage Connections" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -958,6 +980,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "管理连接"
+          }
+        }
+      }
+    },
+    "Manage your connection data. You can back up all your SSH server configurations to a JSON file and restore them later." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理您的连接数据。您可以将所有 SSH 服务器配置备份到 JSON 文件，并在以后恢复它们。"
           }
         }
       }
@@ -993,6 +1025,7 @@
       }
     },
     "Native Ghostty Engine" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1030,12 +1063,6 @@
     },
     "OK" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1045,6 +1072,7 @@
       }
     },
     "Open Application Settings" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1079,6 +1107,9 @@
           }
         }
       }
+    },
+    "Open SSH Session" : {
+
     },
     "Overwrite existing files" : {
       "localizations" : {
@@ -1242,6 +1273,15 @@
         }
       }
     },
+    "Rename" : {
+
+    },
+    "Rename Tab" : {
+
+    },
+    "Rename Terminal Tab" : {
+
+    },
     "Rendering" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1386,6 +1426,7 @@
       }
     },
     "Settings" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1481,6 +1522,16 @@
         }
       }
     },
+    "Start Terminal Session" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动终端会话"
+          }
+        }
+      }
+    },
     "Tab" : {
       "localizations" : {
         "en" : {
@@ -1496,6 +1547,9 @@
           }
         }
       }
+    },
+    "Tab name" : {
+
     },
     "Terminal" : {
       "localizations" : {

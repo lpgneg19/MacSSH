@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0] - 2026-03-28
+
+### Added
+- **Backup & Restore**: Added a new "Data" tab in Settings to export all SSH connection data to a JSON file and import it back.
+- **Improved Connection Controls**: Added explicit "Connect" and "Disconnect" buttons to the terminal toolbar for better visibility and control.
+
+### Changed
+- **Liquid Glass UI**: Refined the local terminal tab selection style with a modern, clean "Liquid Glass" frosted material effect (no glow or shadows).
+- **Tab Bar Relocation**: Moved local terminal tabs out of the title bar to a dedicated tab bar below the toolbar, eliminating the common "collapsing menu" (>>) issue.
+- **SSH Workflow**: Simplified SSH session management by removing internal tabs, focusing on a 1:1 relationship between sidebar connections and terminal sessions.
+- **Streamlined Toolbar**: Simplified the title bar and sidebar toolbars to provide a cleaner macOS-native experience.
+
+### Fixed
+- Fixed a fatal crash in the "Tab" menu caused by index-based access during connection state changes.
+- Fixed the "ugly blue frame" selection indicator in the local terminal tabs.
+- Moved backup/import/export features from the sidebar to the Settings window for better organization.
+- Resolved an issue where local terminal tabs would remain visible when switching to an SSH connection.
+
+---
+
+## [0.1.0] - 2026-03-28
+
+### 新增
+- **备份与恢复**：在设置中新增“数据”选项卡，支持将所有 SSH 连接数据导出为 JSON 文件并在需要时导入。
+- **改进的连接控制**：在终端工具栏中添加了显式的“连接”和“断开”按钮，提升了操作的可视性和便捷性。
+
+### 变更
+- **Liquid Glass UI**：优化了本地终端标签页的选中样式，采用干净、简约的“Liquid Glass”磨砂玻璃特效（取消了蓝色发光和阴影效果）。
+- **标签栏重构**：将本地终端标签页从标题栏移至下方的专门标签栏中，彻底解决了标题栏按钮溢出（>>）的问题。
+- **SSH 工作流**：移除了 SSH 的内部标签页，使其与侧边栏的连接项保持 1:1 的清晰关系。
+- **精简工具栏**：简化了标题栏和侧边栏工具栏，提供了更清爽的原生 macOS 体验。
+
+### 修复
+- 修复了“标签”菜单由于在连接状态切换期间使用索引访问导致的严重崩溃。
+- 修复了本地终端标签页中“丑陋的蓝色边框”选中指示器。
+- 将备份/导入/导出功能从侧边栏移动到设置窗口，使界面组织更合理。
+- 解决了切换到 SSH 连接时本地终端标签页仍保持可见的问题。
+
+---
+
 ## [0.0.3] - 2026-03-24
 
 ### Fixed
