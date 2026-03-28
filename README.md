@@ -16,6 +16,15 @@ A modern, high-performance SSH & SFTP client for macOS, powered by the **Ghostty
 - **Advanced Connectivity**: Reliable SSH sessions using `libssh2` with non-blocking I/O for maximum stability.
 - **Localized UI**: Fully localized and ready for internationalization.
 
+## Installation
+
+You can install **MacSSH** via [Steve's Homebrew Tap](https://github.com/lpgneg19/homebrew-tap):
+
+```bash
+brew tap lpgneg19/tap
+brew install --cask macssh
+```
+
 ## Requirements
 
 - macOS 15.0 or later
