@@ -109,6 +109,9 @@ jobs:
           ZIP_NAME="MacSSH-${VERSION_CLEAN}-Universal.zip"
           DMG_NAME="MacSSH-${VERSION_CLEAN}-Universal.dmg"
           
+          echo "Applying deep ad-hoc signature to satisfy Sparkle validation..."
+          codesign --force --deep -s - "$APP_PATH"
+          
           cd "$APP_DIR"
           zip -r "$GITHUB_WORKSPACE/$ZIP_NAME" "$APP_NAME"
           cd -
