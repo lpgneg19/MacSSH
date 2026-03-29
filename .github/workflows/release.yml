@@ -1,134 +1,202 @@
-name: Release
+name: Build and Release
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+    paths:
+      - 'CHANGELOG.md'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  check-version:
-    name: Check Version Change
+  inspect:
+    name: Inspect Version
     runs-on: ubuntu-latest
     outputs:
-      should_release: ${{ steps.check.outputs.should_release }}
-      version: ${{ steps.check.outputs.version }}
-      changelog: ${{ steps.check.outputs.changelog }}
+      version: ${{ steps.get_version.outputs.VERSION }}
+      version_tag: ${{ steps.get_version.outputs.VERSION_TAG }}
+      skipped: ${{ steps.check_version.outputs.skipped }}
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 2
-          lfs: true
+      - name: Checkout Code
+        uses: actions/checkout@v6
 
-      - name: Extract Version and Notes
-        id: check
+      - name: Extract Version from Changelog
+        id: get_version
         run: |
-          # Extract current version
-          VERSION=$(grep -m 1 "## \[" CHANGELOG.md | sed -E 's/## \[(.*)\].*/\1/')
-          echo "Current Version: $VERSION"
-          
-          # Extract previous version
-          git checkout HEAD^ CHANGELOG.md || true
-          PREV_VERSION=$(grep -m 1 "## \[" CHANGELOG.md | sed -E 's/## \[(.*)\].*/\1/')
-          echo "Previous Version: $PREV_VERSION"
-          
-          # Restore current CHANGELOG.md
-          git checkout HEAD CHANGELOG.md
-          
-          # Extract latest changelog section using awk to grab everything between the first and second '## ['
-          CHANGELOG=$(awk '/^## \[/ { count++; if (count == 2) exit; next } count == 1 { print }' CHANGELOG.md)
-          
-          # Determine if we should release
-          SHOULD_RELEASE="false"
-          if [ "$VERSION" != "$PREV_VERSION" ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            SHOULD_RELEASE="true"
+          VERSION=$(sed -n '/## \[/p' CHANGELOG.md | head -n 1 | cut -d'[' -f2 | cut -d']' -f1)
+          if [ -z "$VERSION" ]; then
+            echo "Error: Could not extract version from CHANGELOG.md"
+            exit 1
           fi
-          
-          echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Multi-line output for changelog
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION_TAG=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected Version: $VERSION"
 
-  build-release:
+      - name: Check If Version Already Released
+        id: check_version
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.get_version.outputs.VERSION }}"
+          if gh release view "$TAG" >/dev/null 2>&1 && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "Version $TAG already exists. Skipping release."
+            echo "skipped=true" >> $GITHUB_OUTPUT
+          else
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
+
+  build:
     name: Build and Release
-    needs: check-version
-    if: needs.check-version.outputs.should_release == 'true'
+    needs: inspect
+    if: needs.inspect.outputs.skipped != 'true'
     runs-on: macos-latest
+    permissions:
+      contents: write
+
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout Code
+        uses: actions/checkout@v6
         with:
           lfs: true
 
-      - name: Setup Xcode
-        uses: lpgneg19/setup-xcode@main
+      - name: Prepare Environment
+        run: |
+          echo "VERSION=${{ needs.inspect.outputs.version }}" >> $GITHUB_ENV
+          echo "VERSION_TAG=${{ needs.inspect.outputs.version_tag }}" >> $GITHUB_ENV
+
+      - name: Set up Xcode
+        uses: lpgneg19/setup-xcode@v2
         with:
-          xcode-version: latest-stable
+          xcode-version: 'latest-stable'
 
       - name: Install Tooling
-        run: brew install xcodegen create-dmg
+        run: brew install xcodegen
 
       - name: Generate Xcode Project
-        run: xcodegen generate
-
-      - name: Build Archive
         run: |
-          xcodebuild archive \
-            -project MacSSH.xcodeproj \
-            -scheme MacSSH \
+          xcodegen generate --spec project.yml
+          
+      - name: Resolve Swift Packages
+        run: |
+          xcodebuild -resolvePackageDependencies -project MacSSH.xcodeproj -scheme MacSSH
+
+      - name: Build Universal Binary
+        run: |
+          VERSION_CLEAN=${{ env.VERSION }}
+          xcodebuild -scheme MacSSH \
             -configuration Release \
-            -archivePath build/MacSSH.xcarchive \
-            -derivedDataPath build/DerivedData \
-            ARCHS=arm64 \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build \
+            MARKETING_VERSION=$VERSION_CLEAN \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
 
-      - name: Export App
+      - name: Package App (ZIP and DMG)
         run: |
-          mkdir -p build/Export
-          # We create a dummy ExportOptions.plist since we aren't signing for App Store/Distribution yet
-          cat <<EOF > build/ExportOptions.plist
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>developer-id</string>
-              <key>signingStyle</key>
-              <string>manual</string>
-          </dict>
-          </plist>
-          EOF
+          rm -rf dmg_root deploy
+          APP_PATH=$(find build/Build/Products/Release -name "MacSSH.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "CRITICAL ERROR: MacSSH.app not found!"
+            exit 1
+          fi
+          APP_NAME=$(basename "$APP_PATH")
+          APP_DIR=$(dirname "$APP_PATH")
+          VERSION_CLEAN=${{ env.VERSION }}
+          ZIP_NAME="MacSSH-${VERSION_CLEAN}-Universal.zip"
+          DMG_NAME="MacSSH-${VERSION_CLEAN}-Universal.dmg"
           
-          cp -R build/MacSSH.xcarchive/Products/Applications/MacSSH.app build/Export/
-          cd build/Export
-          zip -r ../../MacSSH-AppleSilicon.zip MacSSH.app
+          cd "$APP_DIR"
+          zip -r "$GITHUB_WORKSPACE/$ZIP_NAME" "$APP_NAME"
+          cd -
           
-          # Create DMG
-          create-dmg \
-            --volname "MacSSH" \
-            --window-pos 200 120 \
-            --window-size 600 400 \
-            --icon-size 100 \
-            --icon "MacSSH.app" 175 190 \
-            --hide-extension "MacSSH.app" \
-            --app-drop-link 425 190 \
-            "../../MacSSH-AppleSilicon.dmg" \
-            "MacSSH.app"
+          mkdir -p dmg_root
+          cp -R "$APP_PATH" dmg_root/
+          hdiutil create -volname "MacSSH" -srcfolder dmg_root -ov -format UDZO "$DMG_NAME"
+          
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "DMG_NAME=$DMG_NAME" >> $GITHUB_ENV
 
-      - name: Create Release
+      - name: Extract Release Notes (en & zh)
+        run: |
+          VERSION_CLEAN=${{ env.VERSION }}
+          awk "/^## \[$VERSION_CLEAN\]/{flag=1;next} /^## \[/{flag=0} flag" CHANGELOG.md > full_notes.md
+          
+          if [ ! -s full_notes.md ]; then
+            echo "Release for version $VERSION_CLEAN. Check CHANGELOG.md for details." > release_notes_en.md
+            cp release_notes_en.md release_notes_zh.md
+          else
+            sed -n '1,/### Chinese/p' full_notes.md | grep -v "### Chinese" > release_notes_en.md
+            sed -n '/### Chinese/,$p' full_notes.md | sed '1d' > release_notes_zh.md
+            
+            if [ ! -s release_notes_zh.md ]; then cp release_notes_en.md release_notes_zh.md; fi
+            if [ ! -s release_notes_en.md ]; then cp full_notes.md release_notes_en.md; fi
+          fi
+          cp full_notes.md release_notes.md
+
+      - name: Generate Sparkle Appcast
+        env:
+          SPARKLE_SECRET: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          curl -L -O https://github.com/sparkle-project/Sparkle/releases/download/2.9.0/Sparkle-2.9.0.tar.xz
+          tar -xf Sparkle-2.9.0.tar.xz
+
+          CLEAN_KEY=$(echo "$SPARKLE_SECRET" | sed 's/EdDSAPrivateKey://' | tr -dc 'A-Za-z0-9+/=')
+          
+          if [ -z "$CLEAN_KEY" ]; then
+            echo "ERROR: SPARKLE_PRIVATE_KEY secret is missing!"
+            exit 1
+          fi
+
+          mkdir -p deploy
+          cp "${{ env.ZIP_NAME }}" deploy/
+          cp release_notes_en.md "deploy/release_notes_en.md"
+          cp release_notes_zh.md "deploy/release_notes_zh.md"
+          cp release_notes_en.md "deploy/release_notes.md"
+          
+          export DYLD_FRAMEWORK_PATH="$PWD"
+          
+          echo "$CLEAN_KEY" | ./bin/generate_appcast \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/lpgneg19/MacSSH/releases/download/${{ env.VERSION_TAG }}/" \
+            deploy/
+          
+          if [ -f "deploy/appcast.xml" ]; then
+            mv deploy/appcast.xml .
+            sed -i.bak '/<description>/d' appcast.xml
+            sed -i.bak '/<sparkle:releaseNotesLink>/d' appcast.xml
+            
+            EN_LINK="https://github.com/lpgneg19/MacSSH/releases/download/${{ env.VERSION_TAG }}/release_notes_en.md"
+            ZH_LINK="https://github.com/lpgneg19/MacSSH/releases/download/${{ env.VERSION_TAG }}/release_notes_zh.md"
+            
+            sed -i.bak "/<enclosure/i\\
+            <sparkle:releaseNotesLink xml:lang=\"en\">$EN_LINK</sparkle:releaseNotesLink>" appcast.xml
+            sed -i.bak "/<enclosure/i\\
+            <sparkle:releaseNotesLink xml:lang=\"zh-Hans\">$ZH_LINK</sparkle:releaseNotesLink>" appcast.xml
+            
+            rm appcast.xml.bak
+          else
+            echo "ERROR: generate_appcast failed to produce appcast.xml."
+            exit 1
+          fi
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.check-version.outputs.version }}
-          name: v${{ needs.check-version.outputs.version }}
-          body: ${{ needs.check-version.outputs.changelog }}
           files: |
-            MacSSH-AppleSilicon.zip
-            MacSSH-AppleSilicon.dmg
+            ${{ env.ZIP_NAME }}
+            ${{ env.DMG_NAME }}
+            release_notes_en.md
+            release_notes_zh.md
+            appcast.xml
+          name: Release ${{ env.VERSION_TAG }}
+          tag_name: ${{ env.VERSION_TAG }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -136,9 +204,8 @@ jobs:
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          VERSION="${{ needs.check-version.outputs.version }}"
-          DMG_NAME="MacSSH-AppleSilicon.dmg"
-          SHA256=$(shasum -a 256 "$DMG_NAME" | awk '{print $1}')
+          VERSION="${{ env.VERSION }}"
+          SHA256=$(shasum -a 256 "${{ env.DMG_NAME }}" | awk '{print $1}')
           
           git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/lpgneg19/homebrew-tap.git tap-repo
           cd tap-repo

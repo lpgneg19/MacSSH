@@ -12,6 +12,13 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "15.0"
     SWIFT_VERSION: "6.2"
     PRODUCT_NAME: "MacSSH"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "100"
+
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.0.0
 
 schemes:
   MacSSH:
@@ -32,8 +39,8 @@ targets:
       base:
         INFOPLIST_FILE: Sources/App/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.example.MacSSH
-        CURRENT_PROJECT_VERSION: 3
-        MARKETING_VERSION: 0.0.3
+        CURRENT_PROJECT_VERSION: $(CURRENT_PROJECT_VERSION)
+        MARKETING_VERSION: $(MARKETING_VERSION)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_EMIT_LOC_STRINGS: "YES"
         HEADER_SEARCH_PATHS: "$(SRCROOT)/ThirdParty/include"
@@ -46,6 +53,8 @@ targets:
         LD_USE_CLASSIC_LINKER: "YES"
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
     dependencies:
+      - package: Sparkle
+        product: Sparkle
       - framework: ThirdParty/lib/GhosttyKit.xcframework
         embed: false
     postBuildScripts:

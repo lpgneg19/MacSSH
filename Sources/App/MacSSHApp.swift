@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct MacSSHApp: App {
+    @StateObject private var updater = Updater()
     @State private var model = AppModel()
     @State private var settings = AppSettings()
 
@@ -15,6 +16,13 @@ struct MacSSHApp: App {
             ContentView(model: model, settings: settings)
         }
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button(String(localized: "Check for Updates...")) {
+                    updater.checkForUpdates()
+                }
+                .disabled(!updater.canCheckForUpdates)
+            }
+
             CommandMenu(String(localized: "Session")) {
                 Button(String(localized: "Reconnect")) {
                     if let connectionID = model.selectedTab?.connection.id {
